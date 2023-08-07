@@ -1,4 +1,4 @@
-# Detector de Calidad del Agua con Sensor Casero
+# Calidad de Agua
 
 Este es un programa para un detector de calidad del agua utilizando un sensor casero. El programa mide la conductividad del agua, calcula el valor de TDS (Total Dissolved Solids) y envía los datos a ThingSpeak para su visualización y monitoreo en tiempo real. Además, utiliza el servicio de Twilio para enviar mensajes de texto con la clasificación de la calidad del agua según los rangos establecidos por la Organización Mundial de la Salud (OMS). También incluye la funcionalidad para sensar la temperatura del agua utilizando un sensor DS18B20.
 
@@ -19,7 +19,15 @@ El hardware necesario para el detector de calidad del agua incluye:
 - Resistencia de 1k ohm.
 - Jumpers o alambre de conexiones.
 - Sensor DS18B20.
-- Conexiones del sensor de conductividad:
+
+## Conexiones
+
+Sensor de Conductividad | Microcontrolador      ESP32                                            |   Sensor DS18B20    |
+----------------------  | ---------------------------------------------------------------------  |   --------------    |
+Pin de señal/salida     | Pin analógico del microcontrolador (Por ejemplo Pin GPIO36 O GPIO 5)   |   DQ                |
+VCC                     | 3.3V                                                                   |   VDD               |
+GND                     | GND                                                                    |   GND               |
+
   - Pin de señal/salida del sensor conectado al pin analógico del microcontrolador (por ejemplo, Pin 36).
   - VCC del sensor conectado a 3.3V del microcontrolador.
   - GND del sensor conectado a GND del microcontrolador.
