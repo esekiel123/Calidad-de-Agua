@@ -1,115 +1,61 @@
-# Programa para el Detector Calidad del Agua
+# Detector de Calidad del Agua con Sensor Casero
+
+Este es un programa para un detector de calidad del agua utilizando un sensor casero. El programa mide la conductividad del agua, calcula el valor de TDS (Total Dissolved Solids) y envía los datos a ThingSpeak para su visualización y monitoreo en tiempo real. Además, utiliza el servicio de Twilio para enviar mensajes de texto con la clasificación de la calidad del agua según los rangos establecidos por la Organización Mundial de la Salud (OMS). También incluye la funcionalidad para sensar la temperatura del agua utilizando un sensor DS18B20.
 
 ## Descripción
 
-Este programa está diseñado para utilizar un sensor casero para medir la calidad del agua y enviar los datos a ThingSpeak para su visualización y monitoreo. Además, utiliza Twilio para enviar mensajes de texto con la clasificación de la calidad del agua según los rangos establecidos por la OMS.
+El detector de calidad del agua se construye utilizando los siguientes componentes:
 
-## Limitantes
+- Un microcontrolador compatible con WiFi (por ejemplo, ESP32).
+- Un sensor de conductividad casero que mide la caída de voltaje entre dos puntos en el agua y calcula la conductividad en S/m (siemens por metro).
+- Un sensor DS18B20 para medir la temperatura del agua.
+- Una conexión a Internet para enviar datos a ThingSpeak y utilizar el servicio de Twilio.
 
-Este proyecto tiene como finalidad ser usado como 
+## Configuración del Hardware
 
-## Hardware requerido
+El hardware necesario para el detector de calidad del agua incluye:
 
-- Microcontrolador compatible con WiFi (por ejemplo, ESP32)
-- Resistencia de 1k ohmios
-- Jumpers o alambre de conexiones
+- Microcontrolador con WiFi (por ejemplo, ESP32).
+- Resistencia de 1k ohm.
+- Jumpers o alambre de conexiones.
+- Sensor DS18B20.
+- Conexiones del sensor de conductividad:
+  - Pin de señal/salida del sensor conectado al pin analógico del microcontrolador (por ejemplo, Pin 36).
+  - VCC del sensor conectado a 3.3V del microcontrolador.
+  - GND del sensor conectado a GND del microcontrolador.
 
-## Software necesario
+## Dependencias y Librerías
 
-- [Ubuntu 20.04](https://releases.ubuntu.com/20.04/)
-- [Arduino IDE](https://www.arduino.cc/en/software)
-    - [Gestor de tarjetas ESP32](https://github.com/iotechbugs/esp32-arduino/blob/master/docs/arduino-ide/boards_manager.md)
+El programa utiliza las siguientes bibliotecas para su funcionamiento:
 
-## Conexiones
+- `WiFi.h`: Para el control de WiFi en el microcontrolador.
+- `ThingSpeak.h`: Para enviar datos a ThingSpeak y visualizarlos.
+- `twilio.hpp`: Para enviar mensajes SMS mediante Twilio.
+- `OneWire.h`: Para la comunicación con el sensor DS18B20.
+- `DallasTemperature.h`: Para el sensor DS18B20.
 
-Sensor de Conductividad | Microcontrolador
----------------------- | ----------------
-Pin de señal/salida | Pin analógico del microcontrolador (por ejemplo, Pin 36)
-VCC | 3.3V
-GND | GND
+Asegúrate de instalar estas bibliotecas antes de compilar el programa.
 
-## Dependencias
+## Configuración de Credenciales
 
-- Biblioteca WiFi.h para el control de WiFi
-- Biblioteca ThingSpeak.h para enviar datos a ThingSpeak
-- Librería twilio.hpp para enviar mensajes SMS mediante Twilio
+Antes de cargar el programa en el microcontrolador, asegúrate de realizar las siguientes configuraciones:
 
-## Notas importantes
+- Modifica las constantes `ssid` y `password` con los datos de tu red WiFi.
+- Reemplaza los valores de `channelId` y `api_key` con los correspondientes a tu cuenta de ThingSpeak.
+- Proporciona las credenciales de tu cuenta Twilio en la instancia `twilio`.
 
-- Es necesario modificar las constantes `ssid` y `password` con los datos de tu red WiFi.
-- También debes reemplazar los valores de `channelId` y `api_key` con los correspondientes a tu cuenta de ThingSpeak.
-- Para utilizar Twilio, se deben proporcionar las credenciales de tu cuenta (SID y AuthToken).
-- Este programa utiliza técnicas de control de tiempo no bloqueante para realizar las lecturas del sensor y enviar datos a ThingSpeak y Twilio en intervalos definidos por las constantes `updateThingSpeakInterval` y `updateTwilioInterval`.
-- Los datos de conductividad y TDS (Total Dissolved Solids) se envían a ThingSpeak en campos 1 y 2, respectivamente.
-- Los valores de TDS se calculan a partir de la resistencia medida por el sensor y se clasifican según rangos de calidad del agua establecidos por la OMS.
-- Los mensajes de Twilio indican la calidad del agua según los rangos establecidos por la OMS.
-- El código incluye comentarios explicativos para facilitar su comprensión y modificaciones.
+## Funcionamiento del Programa
 
-## Importante
+El programa utiliza técnicas de control de tiempo no bloqueante para realizar las lecturas del sensor y enviar datos a ThingSpeak y Twilio en intervalos definidos por las constantes `updateThingSpeakInterval` y `updateTwilioInterval`. Estos intervalos controlan la frecuencia de actualización de los datos.
 
-Este código es solo un ejemplo y puede requerir ajustes o mejoras según las necesidades específicas del proyecto.
+El valor de conductividad y el valor de TDS (Total Dissolved Solids) se envían a ThingSpeak en campos 1 y 2, respectivamente. El cálculo del valor de TDS se realiza a partir de la resistencia medida por el sensor de conductividad y se clasifica según los rangos de calidad del agua establecidos por la OMS.
 
-```cpp
-#include <WiFi.h>
-#include <ThingSpeak.h>
-#include "twilio.hpp"
+Los mensajes de Twilio indican la calidad del agua según los rangos establecidos por la OMS y se envían al número especificado en la función `enviarMensajeTwilio`.
 
-// Declaración de todas nuestras variables
-// (El código aquí omite las variables para lectura del sensor y cálculos, que se definen más adelante)
+## Notas Finales
 
-const char* ssid = "SSID";      // Cambiar por el nombre de tu red Wi-Fi
-const char* password = "PASSWORD"; // Cambiar por la contraseña de tu red Wi-Fi
+El código incluye comentarios explicativos para facilitar su comprensión y hacer modificaciones según sea necesario. Asegúrate de tener todas las conexiones y componentes configurados correctamente antes de probar el detector de calidad del agua.
 
-const long channelId =  channelId; // Reemplazar con el ID de tu canal en ThingSpeak
-const char* api_key = "api_key";   // Cambiar por tu API Key de ThingSpeak
+Es importante destacar que este es un proyecto de sensor casero y los resultados pueden variar según la calidad y precisión del sensor de conductividad utilizado. Además, la calidad del agua puede estar influenciada por otros factores que no se toman en cuenta en este programa.
 
-WiFiClient client;
-Twilio *twilio;
-
-unsigned long lastThingSpeakUpdate = 0;
-unsigned long lastTwilioUpdate = 0;
-const unsigned long updateThingSpeakInterval = 20000; // Intervalo de actualización de ThingSpeak (15 segundos)
-const unsigned long updateTwilioInterval = 60000;    // Intervalo de actualización de Twilio (60 segundos)
-
-void setup() {
-  // (El código aquí omite la configuración de la comunicación serial y el pin de entrada)
-
-  // Conexión Wi-Fi
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi...");
-  }
-
-  Serial.println("Connected to WiFi");
-
-  twilio = new Twilio("Account SSID", "Auth Token"); // Reemplazar con tus credenciales de Twilio
-}
-
-void loop() {
-  // Obtener el tiempo actual
-  unsigned long currentTime = millis();
-
-  // Solo leer el sensor y actualizar los datos si ha pasado el intervalo para ThingSpeak
-  if (currentTime - lastThingSpeakUpdate >= updateThingSpeakInterval) {
-    lastThingSpeakUpdate = currentTime;
-    actualizarThingSpeak();
-  }
-
-  // Solo enviar el mensaje de Twilio si ha pasado el intervalo para Twilio
-  if (currentTime - lastTwilioUpdate >= updateTwilioInterval) {
-    lastTwilioUpdate = currentTime;
-    enviarMensajeTwilio(TDS);
-  }
-}
-
-// Función para actualizar ThingSpeak
-// (El código aquí omite los cálculos y envío de datos a ThingSpeak)
-
-// Función para enviar mensaje de Twilio
-// (El código aquí omite los cálculos y envío de mensajes Twilio)
-```
-
-## Resultado
-
+¡Disfruta construyendo y probando tu Detector de Calidad del Agua con Sensor Casero!
