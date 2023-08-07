@@ -44,6 +44,10 @@ El programa utiliza las siguientes bibliotecas para su funcionamiento:
 
 Asegúrate de instalar estas bibliotecas antes de compilar el programa.
 
+## Software Utilizado
+
+- [Arduino IDE](https://www.arduino.cc/en/software)
+
 ## Configuración de Credenciales
 
 Antes de cargar el programa en el microcontrolador, asegúrate de realizar las siguientes configuraciones:
