@@ -63,11 +63,11 @@ double A = 0.000150; // área de la sección transversal del cable en m^2
 float C = 0; // conductividad en S/m
 float Cm = 0; // conductividad en mS/cm
 
-const char* ssid = "IZZI-9222";      // Cambiar por el nombre de tu red Wi-Fi
-const char* password = "D4AB826D9222"; // Cambiar por la contraseña de tu red Wi-Fi
+const char* ssid = "SSID";      // Cambiar por el nombre de tu red Wi-Fi
+const char* password = "PASSWORD"; // Cambiar por la contraseña de tu red Wi-Fi
 
-const long channelId =  2226148; // Reemplazar con el ID de tu canal en ThingSpeak
-const char* api_key = "L59HVYCPR3CVI2YB";   // Cambiar por tu API Key de ThingSpeak
+const long channelId =  channelId; // Reemplazar con el ID de tu canal en ThingSpeak
+const char* api_key = "Read Api Key";   // Cambiar por tu API Key de ThingSpeak
 
 WiFiClient client;
 Twilio *twilio;
@@ -97,7 +97,7 @@ void setup() {
 
   Serial.println("Connected to WiFi");
 
-  twilio = new Twilio("AC82fc3dea8c86ad1c568c209ceeac68a0", "b06e0770b16efe9721dbc0a536109b78"); // Reemplazar con tus credenciales de Twilio
+  twilio = new Twilio("Account SID", "Auth Token"); // Reemplazar con tus credenciales de Twilio
 
   // Inicialización del sensor DS18B20
   sensors.begin();
@@ -176,7 +176,7 @@ void enviarMensajeTwilio(float valorTDS) {
   }
 
   String responseMsg;
-  bool successMsg = twilio->send_message("+527771372675", "+12295973449", mensaje, responseMsg); // Reemplazar con los números de destino y de Twilio
+  bool successMsg = twilio->send_message("Numero del Receptor", "Numero de Twilio ", mensaje, responseMsg); // Reemplazar con los números de destino y de Twilio
   if (successMsg) {
     Serial.println("Sent message successfully!");
   } else {
