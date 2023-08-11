@@ -19,11 +19,11 @@
  * VCC                        3.3V                                                              VDD
  * GND                        GND                                                               
  *
- * Semáforo de calidad
+ * Semáforo de Temperatura
  *
  * LED (Verde)               |   Microcontrolador ESP32      |   LED (Amarillo)           |   Microcontrolador ESP32      |   LED (Rojo)              |   Microcontrolador ESP32
  * ------------------------- | ----------------------------- | -------------------------- | ----------------------------- | ------------------------  | -----------------------
- * Ánodo (+)                 |   Pin digital (Ej. GPIO2)     |   Ánodo (+)                |   Pin digital (Ej. GPI18)     |   Ánodo (+)               |   Pin digital (Ej. GPIO4)
+ * Ánodo (+)                 |   Pin digital (Ej. GPI19)     |   Ánodo (+)                |   Pin digital (Ej. GPI21)     |   Ánodo (+)               |   Pin digital (Ej. GPI22)
  * Cátodo (-)                |   GND                         |   Cátodo (-)               |   GND                         |   Cátodo (-)              |   GND
  *
  * 
@@ -52,91 +52,102 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-// Declaración de todas nuestras variables
-float lectura;              // Almacena la lectura del sensor de conductividad
-int pin = 36;               // Número de pin al que está conectado el sensor de conductividad
+// Declaración de variables globales para el sensor de conductividad
+float lectura;
+int pin = 36;
 
-float vOut = 0;             // Voltaje de salida del sensor
-float vIn = 3.3;            // Voltaje de entrada
-float R1 = 1000;            // Valor de la resistencia R1
-float R2 = 0;               // Valor de la resistencia R2
-float buffer = 0;           // Variable de cálculo intermedia
-float TDS;                  // Almacena el valor de Total Dissolved Solids (TDS)
+float vOut = 0;
+float vIn = 3.3;
+float R1 = 1000;
+float R2 = 0;
+float buffer = 0;
+float TDS;
 
-float R = 0;                // Valor de la resistencia medida por el sensor
-float r = 0;                // Valor de la resistividad
-float L = 0.05;             // Distancia entre los cables en metros
-double A = 0.000150;        // Área de la sección transversal del cable en m^2
+float R = 0;
+float r = 0;
+float L = 0.05;
+double A = 0.000150;
 
-float C = 0;                // Valor de la conductividad en S/m
-float Cm = 0;               // Valor de la conductividad en mS/cm
+float C = 0;
+float Cm = 0;
 
-const char* ssid = "SSID";      // Nombre de la red WiFi
-const char* password = "PASSWORD"; // Contraseña de la red WiFi
+// Configuración de la red WiFi
+const char* ssid = "SSID";             // Nombre de la red WiFi
+const char* password = "PASSWORD";     // Contraseña de la red WiFi
 
-const long channelId = CHANNEL_ID; // ID del canal en ThingSpeak
-const char* api_key = "API_KEY";   // API Key de ThingSpeak
+// Configuración de ThingSpeak
+const long channelId = 2226148;        // ID del canal en ThingSpeak
+const char* api_key = "WRITE API KEYS"; // Clave API de escritura de ThingSpeak
 
-WiFiClient client;          // Objeto para la conexión WiFi
-Twilio *twilio;             // Puntero a un objeto Twilio para enviar mensajes SMS
+// Objeto para la conexión WiFi
+WiFiClient client;
 
-unsigned long lastThingSpeakUpdate = 0;    // Tiempo de la última actualización de ThingSpeak
-unsigned long lastTwilioUpdate = 0;        // Tiempo del último envío de mensaje Twilio
-const unsigned long updateThingSpeakInterval = 20000; // Intervalo de actualización de ThingSpeak (20 segundos)
+// Objeto para enviar mensajes Twilio
+Twilio *twilio;
+
+// Variables para controlar el intervalo de actualización
+unsigned long lastThingSpeakUpdate = 0;
+unsigned long lastTwilioUpdate = 0;
+const unsigned long updateThingSpeakInterval = 10000; // Intervalo de actualización de ThingSpeak (10 segundos)
 const unsigned long updateTwilioInterval = 60000;     // Intervalo de envío de mensaje Twilio (60 segundos)
 
-// Definición de pines para los LEDs del semáforo
-const int pinLedVerde = 2;
-const int pinLedAmarillo = 18; // Pin 18 en lugar del pin 3 para el LED amarillo
-const int pinLedRojo = 4;
-
-const int oneWireBus = 5;     // Pin de datos del sensor DS18B20
+// Configuración del bus OneWire y el sensor DS18B20
+const int oneWireBus = 5;
 OneWire oneWire(oneWireBus);
 DallasTemperature sensors(&oneWire);
 
+// Configuración de pines para el semáforo de temperatura
+const int pinLedAzul = 2;               // LED azul: Temperatura fría (por debajo de la temperatura ambiente)
+const int pinLedAmarilloTemp = 18;      // LED amarillo: Temperatura ambiente
+const int pinLedRojoTemp = 4;           // LED rojo: Temperatura por encima de la del ambiente
+
+// Función de configuración (se ejecuta al inicio)
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(115200);  // Iniciar la comunicación serial
 
-  pinMode(pin, INPUT);
-  pinMode(pinLedVerde, OUTPUT);
-  pinMode(pinLedAmarillo, OUTPUT);
-  pinMode(pinLedRojo, OUTPUT);
+  pinMode(pin, INPUT);   // Configurar el pin del sensor de conductividad como entrada
+  pinMode(pinLedAzul, OUTPUT);           // Configurar el pin del LED azul como salida
+  pinMode(pinLedAmarilloTemp, OUTPUT);   // Configurar el pin del LED amarillo como salida
+  pinMode(pinLedRojoTemp, OUTPUT);       // Configurar el pin del LED rojo como salida
 
+  // Conexión a la red WiFi
   WiFi.begin(ssid, password);
-
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi...");
   }
-
   Serial.println("Connected to WiFi");
 
+  // Inicialización del objeto Twilio para enviar mensajes
   twilio = new Twilio("Account SID", "Auth Token");
 
+  // Inicialización del sensor de temperatura DS18B20
   sensors.begin();
 }
 
+// Función de bucle principal (se ejecuta repetidamente)
 void loop() {
   unsigned long currentTime = millis();
 
-  // Actualizar ThingSpeak si ha pasado el intervalo
+  // Actualizar ThingSpeak si ha pasado el intervalo definido
   if (currentTime - lastThingSpeakUpdate >= updateThingSpeakInterval) {
     lastThingSpeakUpdate = currentTime;
     actualizarThingSpeak();
   }
 
-  // Enviar mensaje Twilio si ha pasado el intervalo
+  // Enviar mensaje Twilio si ha pasado el intervalo definido
   if (currentTime - lastTwilioUpdate >= updateTwilioInterval) {
     lastTwilioUpdate = currentTime;
     enviarMensajeTwilio(TDS);
   }
 
-  // Actualizar el estado de los LEDs en función de la calidad del agua
-  actualizarLeds(TDS);
+  // Actualizar el semáforo de temperatura
+  actualizarSemaforoTemperatura();
 }
 
+// Función para actualizar los campos en ThingSpeak
 void actualizarThingSpeak() {
-  // Realizar mediciones y cálculos
+  // Realizar mediciones y cálculos de conductividad y TDS
   lectura = analogRead(pin);
   vOut = lectura * 3.3 / 1023;
   buffer = (vIn / vOut) - 1;
@@ -157,9 +168,8 @@ void actualizarThingSpeak() {
   ThingSpeak.setField(2, TDS);
   ThingSpeak.setField(3, temperaturaAgua);
 
+  // Enviar datos al canal de ThingSpeak y verificar la respuesta
   int response = ThingSpeak.writeFields(channelId, api_key);
-
-  // Verificar el estado de la respuesta de ThingSpeak
   if (response == 200) {
     Serial.println("Data sent to ThingSpeak successfully!");
   } else {
@@ -167,6 +177,7 @@ void actualizarThingSpeak() {
   }
 }
 
+// Función para enviar mensajes Twilio
 void enviarMensajeTwilio(float valorTDS) {
   // Crear mensaje de texto en función del valor de TDS
   String mensaje;
@@ -181,29 +192,3 @@ void enviarMensajeTwilio(float valorTDS) {
   } else {
     mensaje = "La calidad del agua es Inaceptable (TDS: " + String(valorTDS) + ")";
   }
-
-  // Enviar mensaje de texto mediante Twilio
-  String responseMsg;
-  bool successMsg = twilio->send_message("Numero del Receptor", "Numero de Twilio ", mensaje, responseMsg);
-  if (successMsg) {
-    Serial.println("Sent message successfully!");
-  } else {
-    Serial.println(responseMsg);
-  }
-}
-
-void actualizarLeds(float valorTDS) {
-  // Apagar todos los LEDs
-  digitalWrite(pinLedVerde, LOW);
-  digitalWrite(pinLedAmarillo, LOW);
-  digitalWrite(pinLedRojo, LOW);
-
-  // Encender el LED correspondiente según la calidad del agua
-  if (valorTDS < 300) {
-    digitalWrite(pinLedVerde, HIGH);    // LED verde: Calidad de agua excelente
-  } else if (valorTDS >= 300 && valorTDS < 900) {
-    digitalWrite(pinLedAmarillo, HIGH); // LED amarillo: Calidad de agua regular
-  } else {
-    digitalWrite(pinLedRojo, HIGH);     // LED rojo: Calidad de agua pobre o inaceptable
-  }
-}

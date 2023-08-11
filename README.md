@@ -28,7 +28,7 @@ Pin de señal/salida     | Pin analógico del microcontrolador (Por ejemplo Pin 
 VCC                     | 3.3V                                                                   |   VDD               |
 GND                     | GND                                                                    |   GND               |
 
-- Semaforo
+- Semaforo de Temperatura
 
 LED (Verde)              |   Microcontrolador ESP32      |   LED (Amarillo)           |   Microcontrolador ESP32      |   LED (Rojo)              |   Microcontrolador ESP32
 ------------------------- | ----------------------------- | -------------------------- | ----------------------------- | ------------------------ | -----------------------
