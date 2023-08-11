@@ -52,43 +52,45 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-float lectura;
-int pin = 36;
+// Declaración de todas nuestras variables
+float lectura;              // Almacena la lectura del sensor de conductividad
+int pin = 36;               // Número de pin al que está conectado el sensor de conductividad
 
-float vOut = 0;
-float vIn = 3.3;
-float R1 = 1000;
-float R2 = 0;
-float buffer = 0;
-float TDS;
+float vOut = 0;             // Voltaje de salida del sensor
+float vIn = 3.3;            // Voltaje de entrada
+float R1 = 1000;            // Valor de la resistencia R1
+float R2 = 0;               // Valor de la resistencia R2
+float buffer = 0;           // Variable de cálculo intermedia
+float TDS;                  // Almacena el valor de Total Dissolved Solids (TDS)
 
-float R = 0;
-float r = 0;
-float L = 0.05;
-double A = 0.000150;
+float R = 0;                // Valor de la resistencia medida por el sensor
+float r = 0;                // Valor de la resistividad
+float L = 0.05;             // Distancia entre los cables en metros
+double A = 0.000150;        // Área de la sección transversal del cable en m^2
 
-float C = 0;
-float Cm = 0;
+float C = 0;                // Valor de la conductividad en S/m
+float Cm = 0;               // Valor de la conductividad en mS/cm
 
-const char* ssid = "IZZI-9222";
-const char* password = "D4AB826D9222";
+const char* ssid = "SSID";      // Nombre de la red WiFi
+const char* password = "PASSWORD"; // Contraseña de la red WiFi
 
-const long channelId = 2226148;
-const char* api_key = "L59HVYCPR3CVI2YB";
+const long channelId = CHANNEL_ID; // ID del canal en ThingSpeak
+const char* api_key = "API_KEY";   // API Key de ThingSpeak
 
-WiFiClient client;
-Twilio *twilio;
+WiFiClient client;          // Objeto para la conexión WiFi
+Twilio *twilio;             // Puntero a un objeto Twilio para enviar mensajes SMS
 
-unsigned long lastThingSpeakUpdate = 0;
-unsigned long lastTwilioUpdate = 0;
-const unsigned long updateThingSpeakInterval = 20000;
-const unsigned long updateTwilioInterval = 60000;
+unsigned long lastThingSpeakUpdate = 0;    // Tiempo de la última actualización de ThingSpeak
+unsigned long lastTwilioUpdate = 0;        // Tiempo del último envío de mensaje Twilio
+const unsigned long updateThingSpeakInterval = 20000; // Intervalo de actualización de ThingSpeak (20 segundos)
+const unsigned long updateTwilioInterval = 60000;     // Intervalo de envío de mensaje Twilio (60 segundos)
 
+// Definición de pines para los LEDs del semáforo
 const int pinLedVerde = 2;
-const int pinLedAmarillo = 3;
+const int pinLedAmarillo = 18; // Pin 18 en lugar del pin 3 para el LED amarillo
 const int pinLedRojo = 4;
 
-const int oneWireBus = 5;
+const int oneWireBus = 5;     // Pin de datos del sensor DS18B20
 OneWire oneWire(oneWireBus);
 DallasTemperature sensors(&oneWire);
 
@@ -109,7 +111,7 @@ void setup() {
 
   Serial.println("Connected to WiFi");
 
-  twilio = new Twilio("AC82fc3dea8c86ad1c568c209ceeac68a0", "24197962fe7d10c3ed18555447fd48b9");
+  twilio = new Twilio("Account SID", "Auth Token");
 
   sensors.begin();
 }
@@ -117,20 +119,24 @@ void setup() {
 void loop() {
   unsigned long currentTime = millis();
 
+  // Actualizar ThingSpeak si ha pasado el intervalo
   if (currentTime - lastThingSpeakUpdate >= updateThingSpeakInterval) {
     lastThingSpeakUpdate = currentTime;
     actualizarThingSpeak();
   }
 
+  // Enviar mensaje Twilio si ha pasado el intervalo
   if (currentTime - lastTwilioUpdate >= updateTwilioInterval) {
     lastTwilioUpdate = currentTime;
     enviarMensajeTwilio(TDS);
   }
 
+  // Actualizar el estado de los LEDs en función de la calidad del agua
   actualizarLeds(TDS);
 }
 
 void actualizarThingSpeak() {
+  // Realizar mediciones y cálculos
   lectura = analogRead(pin);
   vOut = lectura * 3.3 / 1023;
   buffer = (vIn / vOut) - 1;
@@ -141,9 +147,11 @@ void actualizarThingSpeak() {
   Cm = C * 10;
   TDS = Cm * 0.7;
 
+  // Obtener la temperatura del sensor DS18B20
   sensors.requestTemperatures();
   float temperaturaAgua = sensors.getTempCByIndex(0);
 
+  // Iniciar comunicación con ThingSpeak y enviar datos
   ThingSpeak.begin(client);
   ThingSpeak.setField(1, C);
   ThingSpeak.setField(2, TDS);
@@ -151,6 +159,7 @@ void actualizarThingSpeak() {
 
   int response = ThingSpeak.writeFields(channelId, api_key);
 
+  // Verificar el estado de la respuesta de ThingSpeak
   if (response == 200) {
     Serial.println("Data sent to ThingSpeak successfully!");
   } else {
@@ -159,8 +168,8 @@ void actualizarThingSpeak() {
 }
 
 void enviarMensajeTwilio(float valorTDS) {
+  // Crear mensaje de texto en función del valor de TDS
   String mensaje;
-
   if (valorTDS < 300) {
     mensaje = "La calidad del agua es Excelente (TDS: " + String(valorTDS) + ")";
   } else if (valorTDS >= 300 && valorTDS < 600) {
@@ -173,8 +182,9 @@ void enviarMensajeTwilio(float valorTDS) {
     mensaje = "La calidad del agua es Inaceptable (TDS: " + String(valorTDS) + ")";
   }
 
+  // Enviar mensaje de texto mediante Twilio
   String responseMsg;
-  bool successMsg = twilio->send_message("+527771372675", "+12295973449", mensaje, responseMsg);
+  bool successMsg = twilio->send_message("Numero del Receptor", "Numero de Twilio ", mensaje, responseMsg);
   if (successMsg) {
     Serial.println("Sent message successfully!");
   } else {
@@ -183,15 +193,17 @@ void enviarMensajeTwilio(float valorTDS) {
 }
 
 void actualizarLeds(float valorTDS) {
+  // Apagar todos los LEDs
   digitalWrite(pinLedVerde, LOW);
   digitalWrite(pinLedAmarillo, LOW);
   digitalWrite(pinLedRojo, LOW);
 
+  // Encender el LED correspondiente según la calidad del agua
   if (valorTDS < 300) {
-    digitalWrite(pinLedVerde, HIGH);
+    digitalWrite(pinLedVerde, HIGH);    // LED verde: Calidad de agua excelente
   } else if (valorTDS >= 300 && valorTDS < 900) {
-    digitalWrite(pinLedAmarillo, HIGH);
+    digitalWrite(pinLedAmarillo, HIGH); // LED amarillo: Calidad de agua regular
   } else {
-    digitalWrite(pinLedRojo, HIGH);
+    digitalWrite(pinLedRojo, HIGH);     // LED rojo: Calidad de agua pobre o inaceptable
   }
 }
