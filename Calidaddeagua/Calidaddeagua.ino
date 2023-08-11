@@ -17,7 +17,15 @@
  * ----------------------     ----------------                                                  -------------- 
  * Pin de señal/salida        Pin analógico del microcontrolador (ejemplo: Pin 36)              DQ
  * VCC                        3.3V                                                              VDD
- * GND                        GND                                                               GND
+ * GND                        GND                                                               
+ *
+ * Semáforo de calidad
+ *
+ * LED (Verde)               |   Microcontrolador ESP32      |   LED (Amarillo)           |   Microcontrolador ESP32      |   LED (Rojo)              |   Microcontrolador ESP32
+ * ------------------------- | ----------------------------- | -------------------------- | ----------------------------- | ------------------------  | -----------------------
+ * Ánodo (+)                 |   Pin digital (Ej. GPIO2)     |   Ánodo (+)                |   Pin digital (Ej. GPIO3)     |   Ánodo (+)               |   Pin digital (Ej. GPIO4)
+ * Cátodo (-)                |   GND                         |   Cátodo (-)               |   GND                         |   Cátodo (-)              |   GND
+ *
  * 
  * Dependencias:
  * - Biblioteca WiFi.h para el control de WiFi
@@ -44,41 +52,43 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-// Declaración de todas nuestras variables
 float lectura;
 int pin = 36;
 
-float vOut = 0; // caída de voltaje entre 2 puntos
+float vOut = 0;
 float vIn = 3.3;
 float R1 = 1000;
 float R2 = 0;
 float buffer = 0;
 float TDS;
 
-float R = 0; // resistencia entre los 2 cables
-float r = 0; // resistividad
-float L = 0.05; // distancia entre los cables en metros
-double A = 0.000150; // área de la sección transversal del cable en m^2
+float R = 0;
+float r = 0;
+float L = 0.05;
+double A = 0.000150;
 
-float C = 0; // conductividad en S/m
-float Cm = 0; // conductividad en mS/cm
+float C = 0;
+float Cm = 0;
 
-const char* ssid = "SSID";      // Cambiar por el nombre de tu red Wi-Fi
-const char* password = "PASSWORD"; // Cambiar por la contraseña de tu red Wi-Fi
+const char* ssid = "IZZI-9222";
+const char* password = "D4AB826D9222";
 
-const long channelId =  channelId; // Reemplazar con el ID de tu canal en ThingSpeak
-const char* api_key = "Read Api Key";   // Cambiar por tu API Key de ThingSpeak
+const long channelId = 2226148;
+const char* api_key = "L59HVYCPR3CVI2YB";
 
 WiFiClient client;
 Twilio *twilio;
 
 unsigned long lastThingSpeakUpdate = 0;
 unsigned long lastTwilioUpdate = 0;
-const unsigned long updateThingSpeakInterval = 20000; // Intervalo de actualización de ThingSpeak (15 segundos)
-const unsigned long updateTwilioInterval = 60000;    // Intervalo de actualización de Twilio (60 segundos)
+const unsigned long updateThingSpeakInterval = 20000;
+const unsigned long updateTwilioInterval = 60000;
 
-// Configuración para el sensor DS18B20
-const int oneWireBus = 5; // Pin de datos del sensor DS18B20 (cambiar al pin que desees)
+const int pinLedVerde = 2;
+const int pinLedAmarillo = 3;
+const int pinLedRojo = 4;
+
+const int oneWireBus = 5;
 OneWire oneWire(oneWireBus);
 DallasTemperature sensors(&oneWire);
 
@@ -86,8 +96,10 @@ void setup() {
   Serial.begin(115200);
 
   pinMode(pin, INPUT);
+  pinMode(pinLedVerde, OUTPUT);
+  pinMode(pinLedAmarillo, OUTPUT);
+  pinMode(pinLedRojo, OUTPUT);
 
-  // Conexión Wi-Fi
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
@@ -97,58 +109,45 @@ void setup() {
 
   Serial.println("Connected to WiFi");
 
-  twilio = new Twilio("Account SID", "Auth Token"); // Reemplazar con tus credenciales de Twilio
+  twilio = new Twilio("AC82fc3dea8c86ad1c568c209ceeac68a0", "24197962fe7d10c3ed18555447fd48b9");
 
-  // Inicialización del sensor DS18B20
   sensors.begin();
 }
 
 void loop() {
-  // Obtener el tiempo actual
   unsigned long currentTime = millis();
 
-  // Solo leer el sensor y actualizar los datos si ha pasado el intervalo para ThingSpeak
   if (currentTime - lastThingSpeakUpdate >= updateThingSpeakInterval) {
     lastThingSpeakUpdate = currentTime;
     actualizarThingSpeak();
   }
 
-  // Solo enviar el mensaje de Twilio si ha pasado el intervalo para Twilio
   if (currentTime - lastTwilioUpdate >= updateTwilioInterval) {
     lastTwilioUpdate = currentTime;
     enviarMensajeTwilio(TDS);
   }
+
+  actualizarLeds(TDS);
 }
 
-// Función para actualizar ThingSpeak
 void actualizarThingSpeak() {
   lectura = analogRead(pin);
-
   vOut = lectura * 3.3 / 1023;
-  Serial.println(lectura);
-  //  Serial.println(vOut);
   buffer = (vIn / vOut) - 1;
   R2 = R1 * buffer;
-  Serial.println(R2);
   delay(500);
-  // Convertir el voltaje a resistencia
-  // Aplicar la fórmula mencionada anteriormente
-  r = R2 * A / L; // R=rL/A
-  // Convertir resistividad a conductividad
+  r = R2 * A / L;
   C = 1 / r;
   Cm = C * 10;
-  // Convertir conductividad en mS/cm a TDS
   TDS = Cm * 0.7;
 
-  // Obtener la temperatura del sensor DS18B20
   sensors.requestTemperatures();
   float temperaturaAgua = sensors.getTempCByIndex(0);
 
-  // Enviar datos a ThingSpeak
   ThingSpeak.begin(client);
-  ThingSpeak.setField(1, C);              // Campo 1: Valor de conductividad
-  ThingSpeak.setField(2, TDS);            // Campo 2: Valor de TDS
-  ThingSpeak.setField(3, temperaturaAgua); // Campo 3: Temperatura del agua
+  ThingSpeak.setField(1, C);
+  ThingSpeak.setField(2, TDS);
+  ThingSpeak.setField(3, temperaturaAgua);
 
   int response = ThingSpeak.writeFields(channelId, api_key);
 
@@ -159,10 +158,9 @@ void actualizarThingSpeak() {
   }
 }
 
-// Función para enviar mensaje de Twilio
 void enviarMensajeTwilio(float valorTDS) {
   String mensaje;
-  // Comparar el valor de TDS con los rangos establecidos por la OMS
+
   if (valorTDS < 300) {
     mensaje = "La calidad del agua es Excelente (TDS: " + String(valorTDS) + ")";
   } else if (valorTDS >= 300 && valorTDS < 600) {
@@ -176,10 +174,24 @@ void enviarMensajeTwilio(float valorTDS) {
   }
 
   String responseMsg;
-  bool successMsg = twilio->send_message("Numero del Receptor", "Numero de Twilio ", mensaje, responseMsg); // Reemplazar con los números de destino y de Twilio
+  bool successMsg = twilio->send_message("+527771372675", "+12295973449", mensaje, responseMsg);
   if (successMsg) {
     Serial.println("Sent message successfully!");
   } else {
     Serial.println(responseMsg);
+  }
+}
+
+void actualizarLeds(float valorTDS) {
+  digitalWrite(pinLedVerde, LOW);
+  digitalWrite(pinLedAmarillo, LOW);
+  digitalWrite(pinLedRojo, LOW);
+
+  if (valorTDS < 300) {
+    digitalWrite(pinLedVerde, HIGH);
+  } else if (valorTDS >= 300 && valorTDS < 900) {
+    digitalWrite(pinLedAmarillo, HIGH);
+  } else {
+    digitalWrite(pinLedRojo, HIGH);
   }
 }
