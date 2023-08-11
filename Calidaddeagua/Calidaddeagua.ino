@@ -23,7 +23,7 @@
  *
  * LED (Verde)               |   Microcontrolador ESP32      |   LED (Amarillo)           |   Microcontrolador ESP32      |   LED (Rojo)              |   Microcontrolador ESP32
  * ------------------------- | ----------------------------- | -------------------------- | ----------------------------- | ------------------------  | -----------------------
- * Ánodo (+)                 |   Pin digital (Ej. GPIO2)     |   Ánodo (+)                |   Pin digital (Ej. GPIO3)     |   Ánodo (+)               |   Pin digital (Ej. GPIO4)
+ * Ánodo (+)                 |   Pin digital (Ej. GPIO2)     |   Ánodo (+)                |   Pin digital (Ej. GPI18)     |   Ánodo (+)               |   Pin digital (Ej. GPIO4)
  * Cátodo (-)                |   GND                         |   Cátodo (-)               |   GND                         |   Cátodo (-)              |   GND
  *
  * 
