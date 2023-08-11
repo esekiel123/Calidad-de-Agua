@@ -28,6 +28,14 @@ Pin de señal/salida     | Pin analógico del microcontrolador (Por ejemplo Pin 
 VCC                     | 3.3V                                                                   |   VDD               |
 GND                     | GND                                                                    |   GND               |
 
+- Semaforo
+
+LED (Verde)              |   Microcontrolador ESP32      |   LED (Amarillo)           |   Microcontrolador ESP32      |   LED (Rojo)              |   Microcontrolador ESP32
+------------------------- | ----------------------------- | -------------------------- | ----------------------------- | ------------------------ | -----------------------
+Ánodo (+)                 |   Pin digital (Ej. GPIO2)     |   Ánodo (+)                |   Pin digital (Ej. GPIO3)     |   Ánodo (+)               |   Pin digital (Ej. GPIO4)
+Cátodo (-)                |   GND                         |   Cátodo (-)               |   GND                         |   Cátodo (-)              |   GND
+
+
   - Pin de señal/salida del sensor conectado al pin analógico del microcontrolador (por ejemplo, Pin 36).
   - VCC del sensor conectado a 3.3V del microcontrolador.
   - GND del sensor conectado a GND del microcontrolador.
