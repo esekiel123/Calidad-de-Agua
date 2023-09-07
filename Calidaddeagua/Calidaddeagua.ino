@@ -52,134 +52,109 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-// Declaración de variables globales para el sensor de conductividad
-float lectura;
-int pin = 36;
+// Constantes para los pines
+const int PIN_SENSOR = 36;
+const int PIN_LED_AZUL = 2;
+const int PIN_LED_AMARILLO_TEMP = 18;
+const int PIN_LED_ROJO_TEMP = 4;
 
-float vOut = 0;
-float vIn = 3.3;
-float R1 = 1000;
-float R2 = 0;
-float buffer = 0;
-float TDS;
+// Constantes para cálculos de TDS
+const float VIN = 3.3;
+const float R1 = 1000;
+const double A = 0.000150;
+const float L = 0.05;
 
-float R = 0;
-float r = 0;
-float L = 0.05;
-double A = 0.000150;
+// WiFi y ThingSpeak
+const char* SSID = "IZZI-9222";
+const char* PASSWORD = "D4AB826D9222";
+const long CHANNEL_ID = 2226148;
+const char* API_KEY = "L59HVYCPR3CVI2YB";
+const unsigned long UPDATE_THINGSPEAK_INTERVAL = 10000;  // 10 segundos
 
-float C = 0;
-float Cm = 0;
+// Twilio
+Twilio* twilio;
+const unsigned long UPDATE_TWILIO_INTERVAL = 60000;  // 1 minuto
 
-// Configuración de la red WiFi
-const char* ssid = "SSID";             // Nombre de la red WiFi
-const char* password = "PASSWORD";     // Contraseña de la red WiFi
-
-// Configuración de ThingSpeak
-const long channelId = 2226148;        // ID del canal en ThingSpeak
-const char* api_key = "WRITE API KEYS"; // Clave API de escritura de ThingSpeak
-
-// Objeto para la conexión WiFi
-WiFiClient client;
-
-// Objeto para enviar mensajes Twilio
-Twilio *twilio;
-
-// Variables para controlar el intervalo de actualización
-unsigned long lastThingSpeakUpdate = 0;
-unsigned long lastTwilioUpdate = 0;
-const unsigned long updateThingSpeakInterval = 10000; // Intervalo de actualización de ThingSpeak (10 segundos)
-const unsigned long updateTwilioInterval = 60000;     // Intervalo de envío de mensaje Twilio (60 segundos)
-
-// Configuración del bus OneWire y el sensor DS18B20
-const int oneWireBus = 5;
-OneWire oneWire(oneWireBus);
+// OneWire y Dallas Temperature
+const int ONE_WIRE_BUS = 5;
+OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
-// Configuración de pines para el semáforo de temperatura
-const int pinLedAzul = 2;               // LED azul: Temperatura fría (por debajo de la temperatura ambiente)
-const int pinLedAmarilloTemp = 18;      // LED amarillo: Temperatura ambiente
-const int pinLedRojoTemp = 4;           // LED rojo: Temperatura por encima de la del ambiente
+float lectura = 0;
+float TDS = 0;
 
-// Función de configuración (se ejecuta al inicio)
+unsigned long lastThingSpeakUpdate = 0;
+unsigned long lastTwilioUpdate = 0;
+
 void setup() {
-  Serial.begin(115200);  // Iniciar la comunicación serial
+  Serial.begin(115200);
 
-  pinMode(pin, INPUT);   // Configurar el pin del sensor de conductividad como entrada
-  pinMode(pinLedAzul, OUTPUT);           // Configurar el pin del LED azul como salida
-  pinMode(pinLedAmarilloTemp, OUTPUT);   // Configurar el pin del LED amarillo como salida
-  pinMode(pinLedRojoTemp, OUTPUT);       // Configurar el pin del LED rojo como salida
+  pinMode(PIN_SENSOR, INPUT);
+  pinMode(PIN_LED_AZUL, OUTPUT);
+  pinMode(PIN_LED_AMARILLO_TEMP, OUTPUT);
+  pinMode(PIN_LED_ROJO_TEMP, OUTPUT);
 
-  // Conexión a la red WiFi
-  WiFi.begin(ssid, password);
+  WiFi.begin(SSID, PASSWORD);
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Connecting to WiFi...");
+    Serial.println("Conectando a WiFi...");
   }
-  Serial.println("Connected to WiFi");
 
-  // Inicialización del objeto Twilio para enviar mensajes
-  twilio = new Twilio("Account SID", "Auth Token");
+  Serial.println("Conectado a WiFi");
 
-  // Inicialización del sensor de temperatura DS18B20
+  twilio = new Twilio("ACb44b95bda0814294c9f0668499e11a8a", "8d92daf9789df1f273a75ad4dc4f294f");
+
   sensors.begin();
 }
 
-// Función de bucle principal (se ejecuta repetidamente)
 void loop() {
   unsigned long currentTime = millis();
 
-  // Actualizar ThingSpeak si ha pasado el intervalo definido
-  if (currentTime - lastThingSpeakUpdate >= updateThingSpeakInterval) {
+  if (currentTime - lastThingSpeakUpdate >= UPDATE_THINGSPEAK_INTERVAL) {
     lastThingSpeakUpdate = currentTime;
     actualizarThingSpeak();
   }
 
-  // Enviar mensaje Twilio si ha pasado el intervalo definido
-  if (currentTime - lastTwilioUpdate >= updateTwilioInterval) {
+  if (currentTime - lastTwilioUpdate >= UPDATE_TWILIO_INTERVAL) {
     lastTwilioUpdate = currentTime;
     enviarMensajeTwilio(TDS);
   }
 
-  // Actualizar el semáforo de temperatura
   actualizarSemaforoTemperatura();
 }
 
-// Función para actualizar los campos en ThingSpeak
 void actualizarThingSpeak() {
-  // Realizar mediciones y cálculos de conductividad y TDS
-  lectura = analogRead(pin);
-  vOut = lectura * 3.3 / 1023;
-  buffer = (vIn / vOut) - 1;
-  R2 = R1 * buffer;
+  lectura = analogRead(PIN_SENSOR);
+  float vOut = lectura * VIN / 1023;
+  float buffer = (VIN / vOut) - 1;
+  float R2 = R1 * buffer;
   delay(500);
-  r = R2 * A / L;
-  C = 1 / r;
-  Cm = C * 10;
+  float r = R2 * A / L;
+  float C = 1 / r;
+  float Cm = C * 10;
   TDS = Cm * 0.7;
 
-  // Obtener la temperatura del sensor DS18B20
   sensors.requestTemperatures();
   float temperaturaAgua = sensors.getTempCByIndex(0);
 
-  // Iniciar comunicación con ThingSpeak y enviar datos
+  WiFiClient client; // Declara la variable client aquí
+
   ThingSpeak.begin(client);
   ThingSpeak.setField(1, C);
   ThingSpeak.setField(2, TDS);
   ThingSpeak.setField(3, temperaturaAgua);
 
-  // Enviar datos al canal de ThingSpeak y verificar la respuesta
-  int response = ThingSpeak.writeFields(channelId, api_key);
+  int response = ThingSpeak.writeFields(CHANNEL_ID, API_KEY);
+
   if (response == 200) {
-    Serial.println("Data sent to ThingSpeak successfully!");
+    Serial.println("Datos enviados a ThingSpeak correctamente!");
   } else {
-    Serial.println("Error sending data to ThingSpeak. HTTP error code " + String(response));
+    Serial.println("Error al enviar datos a ThingSpeak. Código de error HTTP: " + String(response));
   }
 }
 
-// Función para enviar mensajes Twilio
 void enviarMensajeTwilio(float valorTDS) {
-  // Crear mensaje de texto en función del valor de TDS
   String mensaje;
   if (valorTDS < 300) {
     mensaje = "La calidad del agua es Excelente (TDS: " + String(valorTDS) + ")";
@@ -192,3 +167,29 @@ void enviarMensajeTwilio(float valorTDS) {
   } else {
     mensaje = "La calidad del agua es Inaceptable (TDS: " + String(valorTDS) + ")";
   }
+
+  String responseMsg;
+  bool successMsg = twilio->send_message("+527771372675", "+13135135251", mensaje, responseMsg);
+  if (successMsg) {
+    Serial.println("Mensaje enviado correctamente!");
+  } else {
+    Serial.println(responseMsg);
+  }
+}
+
+void actualizarSemaforoTemperatura() {
+  sensors.requestTemperatures();
+  float temperaturaAgua = sensors.getTempCByIndex(0);
+
+  digitalWrite(PIN_LED_AZUL, LOW);
+  digitalWrite(PIN_LED_AMARILLO_TEMP, LOW);
+  digitalWrite(PIN_LED_ROJO_TEMP, LOW);
+
+  if (temperaturaAgua < 20) {
+    digitalWrite(PIN_LED_AZUL, HIGH);  // LED azul: Temperatura fría (por debajo de la temperatura ambiente)
+  } else if (temperaturaAgua >= 20 && temperaturaAgua <= 30) {
+    digitalWrite(PIN_LED_AMARILLO_TEMP, HIGH);  // LED amarillo: Temperatura ambiente
+  } else {
+    digitalWrite(PIN_LED_ROJO_TEMP, HIGH);  // LED rojo: Temperatura por encima de la del ambiente
+  }
+}
